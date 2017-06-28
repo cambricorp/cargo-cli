@@ -1,0 +1,8 @@
+[package]
+authors = ["Jason Ozias <jason.g.ozias@gmail.com>"]
+name = "cargo-cli"
+version = "0.1.0"
+
+[dependencies]
+clap = "2.25.0"
+error-chain = "0.10.0"
