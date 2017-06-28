@@ -1,5 +1,5 @@
 //! `cargo-cli` runtime operation
-use clap::{App, Arg};
+use clap::{App, AppSettings, Arg, SubCommand};
 use error::{ErrorKind, Result};
 use std::fs::OpenOptions;
 use std::io::{BufWriter, Write};
@@ -116,7 +116,11 @@ pub fn run() -> Result<i32> {
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("Creates a Rust command line application")
-        .arg(Arg::with_name("vcs")
+        .setting(AppSettings::GlobalVersion)
+        .setting(AppSettings::VersionlessSubcommands)
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(SubCommand::with_name("cli")
+            .arg(Arg::with_name("vcs")
                  .long("vcs")
                  .value_name("VCS")
                  .help("Initialize a new repository for the given version control system
@@ -125,149 +129,153 @@ pub fn run() -> Result<i32> {
                  .possible_values(&["git", "hg", "pijul", "fossil", "none"])
                  .default_value("git")
                  .takes_value(true))
-        .arg(Arg::with_name("name")
+            .arg(Arg::with_name("name")
                  .long("name")
                  .value_name("NAME")
                  .help("Set the resulting package name, defaults to the value of <path>.")
                  .takes_value(true))
-        .arg(Arg::with_name("color")
+            .arg(Arg::with_name("color")
                  .long("color")
                  .value_name("WHEN")
                  .help("Coloring")
                  .possible_values(&["auto", "always", "never"])
                  .default_value("auto")
                  .takes_value(true))
-        .arg(Arg::with_name("frozen")
+            .arg(Arg::with_name("frozen")
                  .long("frozen")
                  .conflicts_with("locked")
                  .help("Require Cargo.lock and cache are up to date"))
-        .arg(Arg::with_name("locked")
+            .arg(Arg::with_name("locked")
                  .long("locked")
                  .help("Require Cargo.lock is up to date"))
-        .arg(Arg::with_name("verbose")
+            .arg(Arg::with_name("verbose")
                  .short("v")
                  .long("verbose")
                  .multiple(true)
                  .help("Use verbose output (-vv very verbose/build.rs output)"))
-        .arg(Arg::with_name("quiet")
+            .arg(Arg::with_name("quiet")
                  .short("q")
                  .long("quiet")
                  .conflicts_with("verbose")
                  .help("No output printed to stdout"))
-        .arg(Arg::with_name("arg_parser")
+            .arg(Arg::with_name("arg_parser")
                  .long("arg_parser")
                  .short("a")
                  .value_name("PARSER")
                  .default_value("clap")
                  .possible_values(&["clap", "docopt"])
                  .help("Specify the argument parser to use"))
-        .arg(Arg::with_name("path").takes_value(true).required(true))
+            .arg(Arg::with_name("path").takes_value(true).required(true)))
         .get_matches();
 
-    let mut cargo_new_args = Vec::new();
-    cargo_new_args.push("new");
-    cargo_new_args.push("--bin");
+    if let Some(cli_matches) = matches.subcommand_matches("cli") {
+        let mut cargo_new_args = Vec::new();
+        cargo_new_args.push("new");
+        cargo_new_args.push("--bin");
 
-    if matches.is_present("frozen") {
-        cargo_new_args.push("--frozen");
-    }
+        if cli_matches.is_present("frozen") {
+            cargo_new_args.push("--frozen");
+        }
 
-    if matches.is_present("locked") {
-        cargo_new_args.push("--locked");
-    }
+        if cli_matches.is_present("locked") {
+            cargo_new_args.push("--locked");
+        }
 
-    if matches.is_present("quiet") {
-        cargo_new_args.push("--quiet");
-    }
+        if cli_matches.is_present("quiet") {
+            cargo_new_args.push("--quiet");
+        }
 
-    match matches.occurrences_of("v") {
-        0 => {}
-        1 => cargo_new_args.push("-v"),
-        2 | _ => cargo_new_args.push("-vv"),
-    }
+        match cli_matches.occurrences_of("v") {
+            0 => {}
+            1 => cargo_new_args.push("-v"),
+            2 | _ => cargo_new_args.push("-vv"),
+        }
 
-    if let Some(color) = matches.value_of("color") {
-        cargo_new_args.push("--color");
-        cargo_new_args.push(color);
-    }
+        if let Some(color) = cli_matches.value_of("color") {
+            cargo_new_args.push("--color");
+            cargo_new_args.push(color);
+        }
 
-    if let Some(vcs) = matches.value_of("vcs") {
-        cargo_new_args.push("--vcs");
-        cargo_new_args.push(vcs);
-    }
+        if let Some(vcs) = cli_matches.value_of("vcs") {
+            cargo_new_args.push("--vcs");
+            cargo_new_args.push(vcs);
+        }
 
-    let (main_str, run_str, dep_str, error_str) = if let Some(arg_parser) =
-        matches.value_of("arg_parser") {
-        match arg_parser {
-            "clap" => (CLAP_MAIN_RS, CLAP_RUN_RS, CLAP_DEPS, CLAP_ERROR_RS),
-            "docopt" => (DOCOPT_MAIN_RS, DOCOPT_RUN_RS, DOCOPT_DEPS, DOCOPT_ERROR_RS),
-            _ => return Err(ErrorKind::InvalidArgParser.into()),
+        let (main_str, run_str, dep_str, error_str) = if let Some(arg_parser) =
+            cli_matches.value_of("arg_parser") {
+            match arg_parser {
+                "clap" => (CLAP_MAIN_RS, CLAP_RUN_RS, CLAP_DEPS, CLAP_ERROR_RS),
+                "docopt" => (DOCOPT_MAIN_RS, DOCOPT_RUN_RS, DOCOPT_DEPS, DOCOPT_ERROR_RS),
+                _ => return Err(ErrorKind::InvalidArgParser.into()),
+            }
+        } else {
+            return Err(ErrorKind::InvalidArgParser.into());
+        };
+
+        let path = if let Some(path) = cli_matches.value_of("path") {
+            cargo_new_args.push(path);
+            path
+        } else {
+            return Err(ErrorKind::InvalidPath.into());
+        };
+
+        let mut cargo_new = Command::new("cargo").args(&cargo_new_args).spawn()?;
+        let ecode = cargo_new.wait()?;
+
+        let mut cargo_toml_path = PathBuf::from(path);
+        cargo_toml_path.push("Cargo.toml");
+        let cargo_toml = OpenOptions::new()
+            .append(true)
+            .write(true)
+            .open(cargo_toml_path.as_path())?;
+        let mut cargo_toml_writer = BufWriter::new(cargo_toml);
+        cargo_toml_writer.write_all(dep_str.as_bytes())?;
+
+        let mut main_path = PathBuf::from(path);
+        main_path.push("src");
+        main_path.push("main.rs");
+
+        let main_rs = OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .open(main_path.as_path())?;
+        let mut main_rs_writer = BufWriter::new(main_rs);
+        let main_rs_header = format!("//! `{}` 0.1.0\n", path);
+        main_rs_writer.write_all(main_rs_header.as_bytes())?;
+        main_rs_writer.write_all(main_str.as_bytes())?;
+
+        let mut error_path = PathBuf::from(path);
+        error_path.push("src");
+        error_path.push("error.rs");
+
+        let error_rs = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(error_path.as_path())?;
+        let mut error_rs_writer = BufWriter::new(error_rs);
+        let error_rs_header = format!("//! `{}` errors\n", path);
+        error_rs_writer.write_all(error_rs_header.as_bytes())?;
+        error_rs_writer.write_all(error_str.as_bytes())?;
+
+        let mut run_path = PathBuf::from(path);
+        run_path.push("src");
+        run_path.push("run.rs");
+
+        let run_rs = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(run_path.as_path())?;
+        let mut run_rs_writer = BufWriter::new(run_rs);
+        let run_rs_header = format!("//! `{}` runtime\n", path);
+        run_rs_writer.write_all(run_rs_header.as_bytes())?;
+        run_rs_writer.write_all(run_str.as_bytes())?;
+
+        if let Some(code) = ecode.code() {
+            Ok(code)
+        } else {
+            Ok(-1)
         }
     } else {
-        return Err(ErrorKind::InvalidArgParser.into());
-    };
-
-    let path = if let Some(path) = matches.value_of("path") {
-        cargo_new_args.push(path);
-        path
-    } else {
-        return Err(ErrorKind::InvalidPath.into());
-    };
-
-    let mut cargo_new = Command::new("cargo").args(&cargo_new_args).spawn()?;
-    let ecode = cargo_new.wait()?;
-
-    let mut cargo_toml_path = PathBuf::from(path);
-    cargo_toml_path.push("Cargo.toml");
-    let cargo_toml = OpenOptions::new()
-        .append(true)
-        .write(true)
-        .open(cargo_toml_path.as_path())?;
-    let mut cargo_toml_writer = BufWriter::new(cargo_toml);
-    cargo_toml_writer.write_all(dep_str.as_bytes())?;
-
-    let mut main_path = PathBuf::from(path);
-    main_path.push("src");
-    main_path.push("main.rs");
-
-    let main_rs = OpenOptions::new()
-        .truncate(true)
-        .write(true)
-        .open(main_path.as_path())?;
-    let mut main_rs_writer = BufWriter::new(main_rs);
-    let main_rs_header = format!("//! `{}` 0.1.0\n", path);
-    main_rs_writer.write_all(main_rs_header.as_bytes())?;
-    main_rs_writer.write_all(main_str.as_bytes())?;
-
-    let mut error_path = PathBuf::from(path);
-    error_path.push("src");
-    error_path.push("error.rs");
-
-    let error_rs = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(error_path.as_path())?;
-    let mut error_rs_writer = BufWriter::new(error_rs);
-    let error_rs_header = format!("//! `{}` errors\n", path);
-    error_rs_writer.write_all(error_rs_header.as_bytes())?;
-    error_rs_writer.write_all(error_str.as_bytes())?;
-
-    let mut run_path = PathBuf::from(path);
-    run_path.push("src");
-    run_path.push("run.rs");
-
-    let run_rs = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(run_path.as_path())?;
-    let mut run_rs_writer = BufWriter::new(run_rs);
-    let run_rs_header = format!("//! `{}` runtime\n", path);
-    run_rs_writer.write_all(run_rs_header.as_bytes())?;
-    run_rs_writer.write_all(run_str.as_bytes())?;
-
-    if let Some(code) = ecode.code() {
-        Ok(code)
-    } else {
-        Ok(-1)
+        Err(ErrorKind::InvalidSubCommand.into())
     }
 }

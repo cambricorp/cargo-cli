@@ -13,5 +13,9 @@ error_chain!{
             description("An invalid path was specified!")
             display("An invalid path was specified!")
         }
+        InvalidSubCommand {
+            description("An invalid subcommand was specified!")
+            display("An invalid subcommand was specified!")
+        }
     }
 }
