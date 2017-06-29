@@ -1,114 +1,19 @@
-//! `cargo-cli` runtime operation
+// Copyright (c) 2017 cargo-cli developers
+//
+// Licensed under the Apache License, Version 2.0
+// <LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0> or the MIT
+// license <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. All files in the project carrying such notice may not be copied,
+// modified, or distributed except according to those terms.
+
+//! `cargo-cli` runtime.
 use clap::{App, AppSettings, Arg, SubCommand};
 use error::{ErrorKind, Result};
 use std::fs::OpenOptions;
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::process::Command;
-
-/// clap version of dependencies
-const CLAP_DEPS: &'static str = "clap = \"2.25.0\"\n\
-error-chain = \"0.10.0\"\n";
-
-/// clap version of `main.rs`
-const CLAP_MAIN_RS: &'static str = "#![deny(missing_docs)]\n\
-#[macro_use]\n\
-extern crate error_chain;\n\
-extern crate clap;\n\n\
-mod error;\n\
-mod run;\n\n\
-use std::io::{self, Write};\n\
-use std::process;\n\n\
-/// CLI Entry Point\n\
-fn main() {\n    \
-match run::run() {\n        \
-Ok(i) => process::exit(i),\n        \
-Err(e) => {\n            \
-writeln!(io::stderr(), \"{}\", e).expect(\"Unable to write to stderr!\");\n            \
-process::exit(1)\n        \
-}\n    \
-}\n\
-}\n";
-
-/// clap version of `run.rs`
-const CLAP_RUN_RS: &'static str = "use clap::App;\n\
-use error::Result;\n\
-use std::io::{self, Write};\n\n\
-/// CLI Runtime\n\
-pub fn run() -> Result<i32> {\n    \
-let _matches = App::new(env!(\"CARGO_PKG_NAME\"))\n        \
-.version(env!(\"CARGO_PKG_VERSION\"))\n        \
-.author(env!(\"CARGO_PKG_AUTHORS\"))\n        \
-.about(\"Prints 'Hello, Rustaceans!' to stdout\")\n        \
-.get_matches();\n\n    \
-writeln!(io::stdout(), \"Hello, Rustaceans!\")?;\n    \
-Ok(0)\n\
-}";
-
-/// clap version of `error.rs`
-const CLAP_ERROR_RS: &'static str = "error_chain!{\n    \
-foreign_links {\n        \
-Io(::std::io::Error);\n    \
-}\n\
-}\n";
-
-/// docopt version of dependencies
-const DOCOPT_DEPS: &'static str = "docopt = \"0.8.1\"\n\
-error-chain = \"0.10.0\"\n\
-serde = \"1.0.8\"\n\
-serde_derive = \"1.0.8\"\n";
-
-/// docopt version of `main.rs`
-const DOCOPT_MAIN_RS: &'static str = "#![deny(missing_docs)]\n\
-#[macro_use]\n\
-extern crate error_chain;\n\
-#[macro_use]\n\
-extern crate serde_derive;\n\
-extern crate docopt;\n\n\
-mod error;\n\
-mod run;\n\n\
-use std::io::{self, Write};\n\
-use std::process;\n\n\
-/// CLI Entry Point\n\
-fn main() {\n    \
-match run::run() {\n        \
-Ok(i) => process::exit(i),\n        \
-Err(e) => {\n            \
-writeln!(io::stderr(), \"{}\", e).expect(\"Unable to write to stderr!\");\n            \
-process::exit(1)\n        \
-}\n    \
-}\n\
-}\n";
-
-/// docopt version of `run.rs`
-const DOCOPT_RUN_RS: &'static str = "use docopt::Docopt;\n\
-use error::Result;\n\
-use std::io::{self, Write};\n\n\
-/// Write the Docopt usage string.\n\
-const USAGE: &'static str = \"\n\
-Usage: blah ( -h | --help )\n       \
-blah ( -V | --version )\n\n\
-Options:\n    \
--h --help     Show this screen.\n    \
--v --version  Show version.\n\
-\";\n\n\
-/// Command line arguments\n\
-#[derive(Debug, Deserialize)]\n\
-struct Args;\n\n\
-/// CLI Runtime\n\
-pub fn run() -> Result<i32> {\n    \
-let _args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize())?;\n    \
-writeln!(io::stdout(), \"Hello, Rustaceans!\")?;\n    \
-Ok(0)\n\
-}";
-
-/// docopt version of `error.rs`
-const DOCOPT_ERROR_RS: &'static str = "error_chain!{\n    \
-foreign_links {\n        \
-Docopt(::docopt::Error);\n        \
-Io(::std::io::Error);\n    \
-}\n\
-}\n";
+use tmpl::Templates;
 
 /// Parse the args, and execute the generated commands.
 pub fn run() -> Result<i32> {
@@ -201,11 +106,10 @@ pub fn run() -> Result<i32> {
             cargo_new_args.push(vcs);
         }
 
-        let (main_str, run_str, dep_str, error_str) = if let Some(arg_parser) =
-            cli_matches.value_of("arg_parser") {
+        let template = if let Some(arg_parser) = cli_matches.value_of("arg_parser") {
             match arg_parser {
-                "clap" => (CLAP_MAIN_RS, CLAP_RUN_RS, CLAP_DEPS, CLAP_ERROR_RS),
-                "docopt" => (DOCOPT_MAIN_RS, DOCOPT_RUN_RS, DOCOPT_DEPS, DOCOPT_ERROR_RS),
+                "clap" => Templates::new(true, false, false),
+                "docopt" => Templates::new(false, false, false),
                 _ => return Err(ErrorKind::InvalidArgParser.into()),
             }
         } else {
@@ -229,7 +133,7 @@ pub fn run() -> Result<i32> {
             .write(true)
             .open(cargo_toml_path.as_path())?;
         let mut cargo_toml_writer = BufWriter::new(cargo_toml);
-        cargo_toml_writer.write_all(dep_str.as_bytes())?;
+        cargo_toml_writer.write_all(template.deps().as_bytes())?;
 
         let mut main_path = PathBuf::from(path);
         main_path.push("src");
@@ -241,8 +145,11 @@ pub fn run() -> Result<i32> {
             .open(main_path.as_path())?;
         let mut main_rs_writer = BufWriter::new(main_rs);
         let main_rs_header = format!("//! `{}` 0.1.0\n", path);
+        if template.has_license() {
+            main_rs_writer.write_all(template.prefix().as_bytes())?;
+        }
         main_rs_writer.write_all(main_rs_header.as_bytes())?;
-        main_rs_writer.write_all(main_str.as_bytes())?;
+        main_rs_writer.write_all(template.main().as_bytes())?;
 
         let mut error_path = PathBuf::from(path);
         error_path.push("src");
@@ -254,8 +161,11 @@ pub fn run() -> Result<i32> {
             .open(error_path.as_path())?;
         let mut error_rs_writer = BufWriter::new(error_rs);
         let error_rs_header = format!("//! `{}` errors\n", path);
+        if template.has_license() {
+            error_rs_writer.write_all(template.prefix().as_bytes())?;
+        }
         error_rs_writer.write_all(error_rs_header.as_bytes())?;
-        error_rs_writer.write_all(error_str.as_bytes())?;
+        error_rs_writer.write_all(template.error().as_bytes())?;
 
         let mut run_path = PathBuf::from(path);
         run_path.push("src");
@@ -267,8 +177,11 @@ pub fn run() -> Result<i32> {
             .open(run_path.as_path())?;
         let mut run_rs_writer = BufWriter::new(run_rs);
         let run_rs_header = format!("//! `{}` runtime\n", path);
+        if template.has_license() {
+            run_rs_writer.write_all(template.prefix().as_bytes())?;
+        }
         run_rs_writer.write_all(run_rs_header.as_bytes())?;
-        run_rs_writer.write_all(run_str.as_bytes())?;
+        run_rs_writer.write_all(template.run().as_bytes())?;
 
         if let Some(code) = ecode.code() {
             Ok(code)
