@@ -10,12 +10,20 @@
 error_chain!{
     foreign_links {
         Io(::std::io::Error);
+        Rustache(::rustache::Error);
+        FromUtf8(::std::string::FromUtf8Error);
+        TomlDe(::toml::de::Error);
+        TomlSe(::toml::ser::Error);
     }
 
     errors {
         InvalidArgParser {
             description("An invalid argument parser was specified!")
             display("An invalid argument parser was specified!")
+        }
+        InvalidLicense {
+            description("An invalid license type was specified!")
+            display("An invalid license type was specified!")
         }
         InvalidPath {
             description("An invalid path was specified!")
