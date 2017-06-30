@@ -177,6 +177,14 @@ pub fn run() -> Result<i32> {
         let mut cargo_new = Command::new("cargo").args(&cargo_new_args).spawn()?;
         let ecode = cargo_new.wait()?;
 
+        if !ecode.success() {
+            if let Some(code) = ecode.code() {
+                return Ok(code);
+            } else {
+                return Err(ErrorKind::InvalidExitCode.into());
+            }
+        }
+
         let mut main_path = PathBuf::from(path);
         main_path.push("src");
         main_path.push("main.rs");
@@ -295,11 +303,7 @@ pub fn run() -> Result<i32> {
         cargo_toml_writer
             .write_all(toml::to_string(&config)?.as_bytes())?;
 
-        if let Some(code) = ecode.code() {
-            Ok(code)
-        } else {
-            Ok(-1)
-        }
+        Ok(0)
     } else {
         Err(ErrorKind::InvalidSubCommand.into())
     }

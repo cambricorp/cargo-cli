@@ -21,6 +21,10 @@ error_chain!{
             description("An invalid argument parser was specified!")
             display("An invalid argument parser was specified!")
         }
+        InvalidExitCode {
+            description("An invalid exit code was received from 'cargo new'!")
+            display("An invalid exit code was received from 'cargo new'!")
+        }
         InvalidLicense {
             description("An invalid license type was specified!")
             display("An invalid license type was specified!")
