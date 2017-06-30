@@ -78,13 +78,17 @@
 //! [error_chain]: https://github.com/brson/error-chain
 //!
 #![deny(missing_docs)]
+#![recursion_limit="128"]
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
 extern crate serde_derive;
 
 extern crate clap;
-extern crate rustache;
+extern crate curl;
+extern crate mustache;
+extern crate serde_json;
+extern crate term;
 extern crate toml;
 
 mod error;

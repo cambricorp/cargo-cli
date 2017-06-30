@@ -9,27 +9,188 @@
 //! `cargo-cli` runtime.
 use clap::{App, AppSettings, Arg, SubCommand};
 use error::{ErrorKind, Result};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
+use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::PathBuf;
-use std::process::Command;
-use tmpl::Templates;
+use std::process::{Command, Stdio};
+use term;
+use tmpl::{TemplateType, Templates};
 use toml;
 
+/// A partial representation of the Cargo.toml config.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Config {
+    /// The package configuration section.
     package: Package,
-    dependencies: Option<HashMap<String, String>>,
+    /// The dependencies list.
+    dependencies: Option<BTreeMap<String, String>>,
 }
 
+/// A partial representation of the Cargo.toml package config.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Package {
+    /// The package name.
     name: String,
+    /// The package version.
     version: String,
+    /// The list of authors.
     authors: Vec<String>,
+    /// The licenses.
     license: Option<String>,
+    /// The readme file.
     readme: Option<String>,
+}
+
+/// output level
+#[derive(Eq, Ord, PartialEq, PartialOrd)]
+enum Level {
+    /// Output everything
+    Trace = 0,
+    /// Everything but TRACE
+    Debug = 1,
+    /// Everything but TRACE and DEBUG
+    Info = 2,
+    /// Warn and above only.
+    Warn = 3,
+    // /// Error and above only.
+    // Error = 4,
+    // /// Only fatal messages are output.
+    // Fatal = 5,
+}
+
+impl fmt::Display for Level {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Level::Trace => write!(f, "Trace"),
+            Level::Debug => write!(f, "Debug"),
+            Level::Info => write!(f, "Info"),
+            Level::Warn => write!(f, "Warn"),
+        }
+    }
+}
+
+/// Write to the given file based on the template type.
+fn write_file(file: File,
+              template: &Templates,
+              template_type: &TemplateType,
+              level: &Level)
+              -> Result<()> {
+    let mut file_writer = BufWriter::new(file);
+
+
+    match *template_type {
+        TemplateType::Main => {
+            if template.has_license() {
+                file_writer.write_all(template.prefix()?.as_bytes())?;
+            }
+            file_writer.write_all(template.main()?.as_bytes())?;
+            debug("Updated", "src/main.rs", level)?;
+        }
+        TemplateType::Error => {
+            if template.has_license() {
+                file_writer.write_all(template.prefix()?.as_bytes())?;
+            }
+            file_writer.write_all(template.error()?.as_bytes())?;
+            debug("Updated", "src/error.rs", level)?;
+        }
+        TemplateType::Run => {
+            if template.has_license() {
+                file_writer.write_all(template.prefix()?.as_bytes())?;
+            }
+            file_writer.write_all(template.run()?.as_bytes())?;
+            debug("Updated", "src/run.rs", level)?;
+        }
+        TemplateType::Mit => {
+            if let Some(mit) = template.mit() {
+                file_writer.write_all(mit.as_bytes())?;
+                debug("Created", "LICENSE-MIT", level)?;
+            }
+        }
+        TemplateType::Apache => {
+            if let Some(apache) = template.apache() {
+                file_writer.write_all(apache.as_bytes())?;
+                debug("Created", "LICENSE-APACHE", level)?;
+            }
+        }
+        TemplateType::Readme => {
+            if let Some(Ok(readme)) = template.readme() {
+                file_writer.write_all(readme.as_bytes())?;
+                debug("Created", "README.md", level)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Update a pre-existing file based on the given template.
+fn update_file(path: &str,
+               path_parts: &[&str],
+               template: &Templates,
+               template_type: &TemplateType,
+               level: &Level)
+               -> Result<()> {
+    let mut file_path = PathBuf::from(path);
+    for path_part in path_parts {
+        file_path.push(path_part);
+    }
+
+    let file = OpenOptions::new()
+        .truncate(true)
+        .write(true)
+        .open(file_path.as_path())?;
+
+    write_file(file, template, template_type, level)
+}
+
+/// Create a new file based on the given template.
+fn create_file(path: &str,
+               path_parts: &[&str],
+               template: &Templates,
+               template_type: &TemplateType,
+               level: &Level)
+               -> Result<()> {
+    let mut file_path = PathBuf::from(path);
+    for path_part in path_parts {
+        file_path.push(path_part);
+    }
+
+    let file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(file_path.as_path())?;
+
+    write_file(file, template, template_type, level)
+}
+
+/// Log a `cargo` formatted message to the terminal.
+fn log_message(verb: &str, message: &str) -> Result<()> {
+    let mut t = term::stdout().ok_or(ErrorKind::TermCommand)?;
+    t.fg(term::color::BRIGHT_GREEN)?;
+    t.attr(term::Attr::Bold)?;
+    write!(t, "{:>12}", verb)?;
+    t.reset()?;
+    writeln!(t, " {}", message)?;
+    t.flush()?;
+    Ok(())
+}
+
+/// Log a debug level message to the terminal.
+fn debug(verb: &str, message: &str, level: &Level) -> Result<()> {
+    if *level <= Level::Debug {
+        log_message(verb, message)?;
+    }
+    Ok(())
+}
+
+/// Log an info level message to the terminal.
+fn info(verb: &str, message: &str, level: &Level) -> Result<()> {
+    if *level <= Level::Info {
+        log_message(verb, message)?;
+    }
+    Ok(())
 }
 
 /// Parse the args, and execute the generated commands.
@@ -72,7 +233,6 @@ pub fn run() -> Result<i32> {
                  .help("Require Cargo.lock is up to date"))
             .arg(Arg::with_name("verbose")
                  .short("v")
-                 .long("verbose")
                  .multiple(true)
                  .help("Use verbose output (-vv very verbose/build.rs output)"))
             .arg(Arg::with_name("quiet")
@@ -97,6 +257,9 @@ pub fn run() -> Result<i32> {
             .arg(Arg::with_name("no-readme")
                  .long("no-readme")
                  .help("Turn off README.md generation."))
+            .arg(Arg::with_name("no-latest")
+                 .long("no-latest")
+                 .help("Turn off the crates.io query for the latest version (use defaults)."))
             .arg(Arg::with_name("path").takes_value(true).required(true)))
         .get_matches();
 
@@ -113,15 +276,22 @@ pub fn run() -> Result<i32> {
             cargo_new_args.push("--locked");
         }
 
-        if cli_matches.is_present("quiet") {
+        let level = if cli_matches.is_present("quiet") {
             cargo_new_args.push("--quiet");
-        }
-
-        match cli_matches.occurrences_of("v") {
-            0 => {}
-            1 => cargo_new_args.push("-v"),
-            2 | _ => cargo_new_args.push("-vv"),
-        }
+            Level::Warn
+        } else {
+            match cli_matches.occurrences_of("verbose") {
+                0 => Level::Info,
+                1 => {
+                    cargo_new_args.push("-v");
+                    Level::Debug
+                }
+                2 | _ => {
+                    cargo_new_args.push("-vv");
+                    Level::Trace
+                }
+            }
+        };
 
         if let Some(color) = cli_matches.value_of("color") {
             cargo_new_args.push("--color");
@@ -150,6 +320,7 @@ pub fn run() -> Result<i32> {
         };
 
         let readme = !cli_matches.is_present("no-readme");
+        let query = !cli_matches.is_present("no-latest");
 
         let (mit, apache) = if let Some(license) = cli_matches.value_of("license") {
             match license {
@@ -165,16 +336,19 @@ pub fn run() -> Result<i32> {
 
         let template = if let Some(arg_parser) = cli_matches.value_of("arg_parser") {
             match arg_parser {
-                "clap" => Templates::new(name, true, mit, apache, readme),
-                "docopt" => Templates::new(name, false, mit, apache, readme),
+                "clap" => Templates::new(name, true, mit, apache, readme, query),
+                "docopt" => Templates::new(name, false, mit, apache, readme, query),
                 _ => return Err(ErrorKind::InvalidArgParser.into()),
             }
         } else {
             return Err(ErrorKind::InvalidArgParser.into());
         };
 
-
-        let mut cargo_new = Command::new("cargo").args(&cargo_new_args).spawn()?;
+        let mut cargo_new = Command::new("cargo")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .args(&cargo_new_args)
+            .spawn()?;
         let ecode = cargo_new.wait()?;
 
         if !ecode.success() {
@@ -185,83 +359,36 @@ pub fn run() -> Result<i32> {
             }
         }
 
-        let mut main_path = PathBuf::from(path);
-        main_path.push("src");
-        main_path.push("main.rs");
-
-        let main_rs = OpenOptions::new()
-            .truncate(true)
-            .write(true)
-            .open(main_path.as_path())?;
-        let mut main_rs_writer = BufWriter::new(main_rs);
-        if template.has_license() {
-            main_rs_writer.write_all(template.prefix()?.as_bytes())?;
-        }
-        main_rs_writer.write_all(template.main()?.as_bytes())?;
-
-        let mut error_path = PathBuf::from(path);
-        error_path.push("src");
-        error_path.push("error.rs");
-
-        let error_rs = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(error_path.as_path())?;
-        let mut error_rs_writer = BufWriter::new(error_rs);
-        if template.has_license() {
-            error_rs_writer.write_all(template.prefix()?.as_bytes())?;
-        }
-        error_rs_writer.write_all(template.error()?.as_bytes())?;
-
-        let mut run_path = PathBuf::from(path);
-        run_path.push("src");
-        run_path.push("run.rs");
-
-        let run_rs = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(run_path.as_path())?;
-        let mut run_rs_writer = BufWriter::new(run_rs);
-        if template.has_license() {
-            run_rs_writer.write_all(template.prefix()?.as_bytes())?;
-        }
-        run_rs_writer.write_all(template.run()?.as_bytes())?;
-
-        if let Some(mit) = template.mit() {
-            let mut mit_path = PathBuf::from(path);
-            mit_path.push("LICENSE-MIT");
-
-            let mit_license = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(mit_path.as_path())?;
-            let mut mit_license_writer = BufWriter::new(mit_license);
-            mit_license_writer.write_all(mit.as_bytes())?;
-        }
-
-        if let Some(apache) = template.apache() {
-            let mut apache_path = PathBuf::from(path);
-            apache_path.push("LICENSE-APACHE");
-
-            let apache_license = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(apache_path.as_path())?;
-            let mut apache_license_writer = BufWriter::new(apache_license);
-            apache_license_writer.write_all(apache.as_bytes())?;
-        }
-
-        if let Some(Ok(readme)) = template.readme() {
-            let mut readme_path = PathBuf::from(path);
-            readme_path.push("README.md");
-
-            let readme_license = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(readme_path.as_path())?;
-            let mut readme_license_writer = BufWriter::new(readme_license);
-            readme_license_writer.write_all(readme.as_bytes())?;
-        }
+        update_file(path,
+                    &["src", "main.rs"],
+                    &template,
+                    &TemplateType::Main,
+                    &level)?;
+        create_file(path,
+                    &["src", "error.rs"],
+                    &template,
+                    &TemplateType::Error,
+                    &level)?;
+        create_file(path,
+                    &["src", "run.rs"],
+                    &template,
+                    &TemplateType::Run,
+                    &level)?;
+        create_file(path,
+                    &["LICENSE-MIT"],
+                    &template,
+                    &TemplateType::Mit,
+                    &level)?;
+        create_file(path,
+                    &["LICENSE-APACHE"],
+                    &template,
+                    &TemplateType::Apache,
+                    &level)?;
+        create_file(path,
+                    &["README.md"],
+                    &template,
+                    &TemplateType::Readme,
+                    &level)?;
 
         let mut cargo_toml_path = PathBuf::from(path);
         cargo_toml_path.push("Cargo.toml");
@@ -275,7 +402,7 @@ pub fn run() -> Result<i32> {
         let mut deps = if let Some(deps) = config.dependencies {
             deps
         } else {
-            HashMap::new()
+            BTreeMap::new()
         };
 
         template.add_deps(&mut deps);
@@ -302,6 +429,11 @@ pub fn run() -> Result<i32> {
         let mut cargo_toml_writer = BufWriter::new(new_cargo_toml);
         cargo_toml_writer
             .write_all(toml::to_string(&config)?.as_bytes())?;
+
+        debug("Updated", "Cargo.toml", &level)?;
+
+        let msg = format!("binary cli (application) `{}` project", name);
+        info("Created", &msg, &level)?;
 
         Ok(0)
     } else {

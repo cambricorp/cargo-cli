@@ -11,11 +11,11 @@ version = "0.1.0"
 
 [dependencies]
 clap = "2.25.0"
+curl = "0.4.7"
 error-chain = "0.10.0"
+mustache = "0.8.0"
 serde = "1.0.8"
+serde_json = "1.0.2"
 serde_derive = "1.0.8"
+term = "0.4.6"
 toml = "0.4.2"
-
-[dependencies.rustache]
-path = "../rustache"
-version = "0.1.0"

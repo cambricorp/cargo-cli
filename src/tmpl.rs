@@ -1,15 +1,62 @@
 //! `cargo-cli` template files
+use curl::easy::Easy;
 use error::Result;
-use rustache::{HashBuilder, Render};
-use std::collections::HashMap;
+use mustache::{self, Data, MapBuilder};
+use serde_json;
+use std::collections::BTreeMap;
+use std::fmt;
 use std::io::Cursor;
+use std::time::Duration;
+
+/// Template Type
+pub enum TemplateType {
+    /// main.rs
+    Main,
+    /// run.rs
+    Run,
+    /// error.rs
+    Error,
+    /// LICENSE-MIT
+    Mit,
+    /// LICENSE-APACHE
+    Apache,
+    /// README.md
+    Readme,
+}
+
+/// json
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CrateInfo {
+    /// Crate data.
+    #[serde(rename = "crate")]
+    krate: Crate,
+}
+
+impl fmt::Display for CrateInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "crate: {}", self.krate)
+    }
+}
+
+/// Crate data
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Crate {
+    /// Maximum version field.
+    max_version: String,
+}
+
+impl fmt::Display for Crate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "max_version: {}", self.max_version)
+    }
+}
 
 /// Contaier for file templates for various auto-generated files.
 pub struct Templates {
     /// clap or docopt?
     clap: bool,
-    /// The name of the package.
-    kvs: HashBuilder<'static>,
+    /// mustache `Data`.
+    kvs: Data,
     /// The `main.rs` replacement.
     main: &'static str,
     /// The `run.rs` file.
@@ -24,15 +71,23 @@ pub struct Templates {
     apache: Option<&'static str>,
     /// The README.md file.
     readme: Option<&'static str>,
+    /// Should we query for the latest version of the dependencies?
+    query: bool,
 }
 
 
 impl Templates {
     /// Create a new template use for file creation.
-    pub fn new(name: &str, clap: bool, mit: bool, apache: bool, readme: bool) -> Templates {
+    pub fn new(name: &str,
+               clap: bool,
+               mit: bool,
+               apache: bool,
+               readme: bool,
+               query: bool)
+               -> Templates {
         let mut template = Templates {
             clap: clap,
-            kvs: HashBuilder::new().insert("name", name),
+            kvs: MapBuilder::new().insert_str("name", name).build(),
             main: "",
             run: "",
             error: "",
@@ -40,6 +95,7 @@ impl Templates {
             mit: None,
             apache: None,
             readme: None,
+            query: query,
         };
 
         if mit && apache {
@@ -140,25 +196,78 @@ impl Templates {
         CARGO_TOML_APACHE
     }
 
-    /// Add the appropriate deps to the deps `HashMap`.
-    pub fn add_deps(&self, deps: &mut HashMap<String, String>) {
+    /// Add the appropriate deps to the deps `BTreeMap`.
+    pub fn add_deps(&self, deps: &mut BTreeMap<String, String>) {
         if self.clap {
-            deps.insert("error-chain".to_string(), "0.10.0".to_string());
-            deps.insert("clap".to_string(), "2.25.0".to_string());
+            let (error_chain_latest, clap_latest) = if self.query {
+                (get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
+                 get_latest("clap").unwrap_or_else(|_| "2.25.0".to_string()))
+            } else {
+                ("0.10.0".to_string(), "2.25.0".to_string())
+            };
+            deps.insert("error-chain".to_string(), error_chain_latest);
+            deps.insert("clap".to_string(), clap_latest);
         } else {
-            deps.insert("serde_derive".to_string(), "1.0.8".to_string());
-            deps.insert("serde".to_string(), "1.0.8".to_string());
-            deps.insert("error-chain".to_string(), "0.10.0".to_string());
-            deps.insert("docopt".to_string(), "0.8.1".to_string());
+            let (ec_latest, docopt_latest, sd_latest, s_latest) = if self.query {
+                (get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
+                 get_latest("docopt").unwrap_or_else(|_| "0.8.1".to_string()),
+                 get_latest("serde_derive").unwrap_or_else(|_| "1.0.9".to_string()),
+                 get_latest("serde").unwrap_or_else(|_| "1.0.9".to_string()))
+            } else {
+                ("0.10.0".to_string(),
+                 "0.8.1".to_string(),
+                 "1.0.9".to_string(),
+                 "1.0.9".to_string())
+            };
+            deps.insert("serde_derive".to_string(), sd_latest);
+            deps.insert("serde".to_string(), s_latest);
+            deps.insert("error-chain".to_string(), ec_latest);
+            deps.insert("docopt".to_string(), docopt_latest);
         }
     }
 
-    fn render(&self, template: &str) -> Result<String> {
+    /// Render the given mustache template with the key/value pairs in `kvs`.
+    fn render(&self, template_str: &str) -> Result<String> {
+        let template = mustache::compile_str(template_str)?;
         let mut out = Cursor::new(Vec::new());
-        self.kvs.render(template, &mut out)?;
+        template.render_data(&mut out, &self.kvs)?;
         Ok(String::from_utf8(out.into_inner())?)
     }
 }
+
+/// Get the latest version from crates.io.
+fn get_latest(name: &str) -> Result<String> {
+    let crate_json = fetch_cratesio(name)?;
+    let crate_info: CrateInfo = serde_json::from_str(&crate_json)?;
+    Ok(crate_info.krate.max_version)
+}
+
+/// Fetch crate data from crates.io.
+fn fetch_cratesio(path: &str) -> Result<String> {
+    let mut easy = Easy::new();
+    easy.url(&format!("{}/api/v1/crates/{}", REGISTRY_HOST, path))?;
+    easy.timeout(Duration::from_secs(5))?;
+    easy.get(true)?;
+    easy.accept_encoding("application/json")?;
+
+    let mut html = Vec::new();
+    {
+        let mut transfer = easy.transfer();
+        transfer
+            .write_function(|data| {
+                                html.extend_from_slice(data);
+                                Ok(data.len())
+                            })?;
+
+
+        transfer.perform()?;
+    }
+
+    Ok(String::from_utf8(html)?)
+}
+
+/// crates.io Cargo Registry
+const REGISTRY_HOST: &'static str = "https://crates.io";
 
 /// Cargo.toml package readme entry.
 const CARGO_TOML_README: &'static str = r#"README.md"#;
@@ -273,7 +382,10 @@ error_chain!{
     }
 }"#;
 
+/// MIT/Apache-2.0 license entry for Cargo.toml.
 const CARGO_TOML_BOTH: &'static str = r#"MIT/Apache-2.0"#;
+
+/// .rs file prefix when both licenses are used.
 const PREFIX_BOTH: &'static str = r#"// Copyright (c) 2017 {{ name }} developers
 //
 // Licensed under the Apache License, Version 2.0
@@ -284,7 +396,10 @@ const PREFIX_BOTH: &'static str = r#"// Copyright (c) 2017 {{ name }} developers
 
 "#;
 
+/// MIT license entry for Cargo.toml.
 const CARGO_TOML_MIT: &'static str = r#"MIT"#;
+
+/// .rs file prefix when MIT is the only license.
 const PREFIX_MIT: &'static str = r#"// Copyright (c) 2017 {{ name }} developers
 //
 // Licensed under the MIT license <LICENSE-MIT or http://opensource.org/licenses/MIT>.
@@ -293,7 +408,10 @@ const PREFIX_MIT: &'static str = r#"// Copyright (c) 2017 {{ name }} developers
 
 "#;
 
+/// Apache-2.0 license entry for Cargo.toml.
 const CARGO_TOML_APACHE: &'static str = r#"Apache-2.0"#;
+
+/// .rs file prefix when Apache-2.0 is the only license.
 const PREFIX_APACHE: &'static str = r#"// Copyright (c) 2017 {{ name }} developers
 //
 // Licensed under the Apache License, Version 2.0
@@ -303,6 +421,7 @@ const PREFIX_APACHE: &'static str = r#"// Copyright (c) 2017 {{ name }} develope
 
 "#;
 
+/// MIT License template
 const LICENSE_MIT: &'static str = r#"Copyright (c) 2016 The Rust Project Developers
 
 Permission is hereby granted, free of charge, to any
@@ -331,6 +450,7 @@ DEALINGS IN THE SOFTWARE.
 
 "#;
 
+/// Apache-2.0 License template
 const LICENSE_APACHE: &'static str = r#"                              Apache License
                         Version 2.0, January 2004
                      http://www.apache.org/licenses/
@@ -534,6 +654,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 "#;
 
+/// README.md template
 const README: &'static str = r#"# {{ name }}
 A Rust command line interface generated by `cargo-cli`.
 "#;

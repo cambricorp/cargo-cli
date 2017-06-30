@@ -9,9 +9,12 @@
 //! `cargo-cli` errors
 error_chain!{
     foreign_links {
-        Io(::std::io::Error);
-        Rustache(::rustache::Error);
+        Curl(::curl::Error);
         FromUtf8(::std::string::FromUtf8Error);
+        Io(::std::io::Error);
+        Json(::serde_json::Error);
+        Mustache(::mustache::Error);
+        Term(::term::Error);
         TomlDe(::toml::de::Error);
         TomlSe(::toml::ser::Error);
     }
@@ -36,6 +39,10 @@ error_chain!{
         InvalidSubCommand {
             description("An invalid subcommand was specified!")
             display("An invalid subcommand was specified!")
+        }
+        TermCommand {
+            description("Issue with term command!")
+            display("Issue with term command!")
         }
     }
 }
