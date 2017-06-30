@@ -1,4 +1,5 @@
 //! `cargo-cli` template files
+
 use curl::easy::Easy;
 use error::Result;
 use mustache::{self, Data, MapBuilder};

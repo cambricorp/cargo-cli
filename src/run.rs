@@ -7,6 +7,7 @@
 // modified, or distributed except according to those terms.
 
 //! `cargo-cli` runtime.
+
 use clap::{App, AppSettings, Arg, SubCommand};
 use error::{ErrorKind, Result};
 use std::collections::BTreeMap;
@@ -157,12 +158,23 @@ fn create_file(path: &str,
         file_path.push(path_part);
     }
 
-    let file = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(file_path.as_path())?;
+    let create_file = match *template_type {
+        TemplateType::Mit => template.mit().is_some(),
+        TemplateType::Apache => template.apache().is_some(),
+        TemplateType::Readme => template.readme().is_some(),
+        _ => true,
+    };
 
-    write_file(file, template, template_type, level)
+    if create_file {
+        let file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(file_path.as_path())?;
+
+        write_file(file, template, template_type, level)?;
+    }
+
+    Ok(())
 }
 
 /// Log a `cargo` formatted message to the terminal.

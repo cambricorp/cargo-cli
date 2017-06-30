@@ -8,32 +8,38 @@ Create a command line interface binary with some common dependencies (([`clap`][
 # Usage
 In general, this is extension is used in the same manner as you would use `cargo new --bin`.
 Most of the command line arguments supported by `cargo new` are supported by `cargo cli` and are
-actually passed through to `cargo new`.  In addition, `cargo cli` supports specifying which
-argument parser you would like to setup your CLI to use (clap or docopt).
+actually passed through to `cargo new`.
+
+In addition, `cargo cli` supports the following options:
+
+* arg_parser: Specify the argument parser to use in the generated output. [default: clap]  [values: clap, docopt]
+* license: Specify licensing to include in the generated output. [default: both]  [values: both, mit, apache, none]
+* no-readme: Turn off README.md generation.
+* no-latest: Turn off the crates.io query for the latest version (use defaults).
 
 ```text
 cargo-cli 0.1.0
 
 USAGE:
-    cargo cli [FLAGS] [OPTIONS] <path>
+    cargo-cli cli [FLAGS] [OPTIONS] <path>
 
 FLAGS:
-        --frozen     Require Cargo.lock and cache are up to date
-    -h, --help       Prints help information
-        --locked     Require Cargo.lock is up to date
-    -q, --quiet      No output printed to stdout
-    -v, --verbose    Use verbose output (-vv very verbose/build.rs output)
+        --frozen       Require Cargo.lock and cache are up to date
+    -h, --help         Prints help information
+        --locked       Require Cargo.lock is up to date
+        --no-latest    Turn off the crates.io query for the latest version (use defaults).
+        --no-readme    Turn off README.md generation.
+    -q, --quiet        No output printed to stdout
+    -v                 Use verbose output (-vv very verbose/build.rs output)
 
 OPTIONS:
-    -a, --arg_parser <PARSER>    Specify the argument parser to use [default: clap]
-                                 [values: clap, docopt]
+    -a, --arg_parser <PARSER>    Specify the argument parser to use in the generated output. [default: clap]  [values: clap, docopt]
         --color <WHEN>           Coloring [default: auto]  [values: auto, always, never]
-        --name <NAME>            Set the resulting package name, defaults to the value of
-                                 <path>.
-        --vcs <VCS>              Initialize a new repository for the given version control
-                                 system or do not initialize any version control at all,
-                                 overriding a global configuration. [default: git]
-                                 [values: git, hg, pijul, fossil, none]
+        --license <TYPE>         Specify licensing to include in the generated output. [default: both]  [values: both, mit, apache, none]
+        --name <NAME>            Set the resulting package name, defaults to the value of <path>.
+        --vcs <VCS>              Initialize a new repository for the given version control system
+                                 or do not initialize any version control at all, overriding a
+                                 global configuration. [default: git]  [values: git, hg, pijul, fossil, none]
 
 ARGS:
     <path>
@@ -41,13 +47,16 @@ ARGS:
 
 # Examples
 ### With clap
-```cargo cli <path>```
+`cargo cli <path>`
 
 ### With docopt
-```cargo cli -a docopt <path>```
+`cargo cli -a docopt <path>`
+
+### No licenses or README.md
+`cargo cli --license none --no-readme <path>`
 
 ### With some `cargo new` arguments
-```cargo cli --vcs pijul -vv -a docopt --name flambe <path>```
+`cargo cli --vcs pijul -vv -a docopt --name flambe <path>`
 
 # CLI Layout
 
@@ -55,15 +64,23 @@ ARGS:
 ```text
 .
 ├── Cargo.toml
+├── LICENSE-APACHE
+├── LICENSE-MIT
+├── README.md
 └── src
     ├── error.rs
     ├── main.rs
     └── run.rs
 ```
 
-### With License(s)
+### No Licenses or README.md
 ```text
-. TODO
+.
+├── Cargo.toml
+└── src
+    ├── error.rs
+    ├── main.rs
+    └── run.rs
 ```
 
 [clap]: https://clap.rs/
