@@ -12,10 +12,10 @@ actually passed through to `cargo new`.
 
 In addition, `cargo cli` supports the following options:
 
-* arg_parser: Specify the argument parser to use in the generated output. [default: clap]  [values: clap, docopt]
-* license: Specify licensing to include in the generated output. [default: both]  [values: both, mit, apache, none]
-* no-readme: Turn off README.md generation.
-* no-latest: Turn off the crates.io query for the latest version (use defaults).
+* `arg_parser`: Specify the argument parser to use in the generated output. [default: clap]  [values: clap, docopt]
+* `license`: Specify licensing to include in the generated output. [default: both]  [values: both, mit, apache, none]
+* `no-readme`: Turn off README.md generation.
+* `no-latest`: Turn off the crates.io query for the latest version (use defaults).
 
 ```text
 cargo-cli 0.1.0
