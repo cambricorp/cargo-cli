@@ -73,11 +73,12 @@ impl fmt::Display for Level {
 }
 
 /// Write to the given file based on the template type.
-fn write_file(file: File,
-              template: &Templates,
-              template_type: &TemplateType,
-              level: &Level)
-              -> Result<()> {
+fn write_file(
+    file: File,
+    template: &Templates,
+    template_type: &TemplateType,
+    level: &Level,
+) -> Result<()> {
     let mut file_writer = BufWriter::new(file);
 
 
@@ -103,36 +104,31 @@ fn write_file(file: File,
             file_writer.write_all(template.run()?.as_bytes())?;
             debug("Updated", "src/run.rs", level)?;
         }
-        TemplateType::Mit => {
-            if let Some(mit) = template.mit() {
-                file_writer.write_all(mit.as_bytes())?;
-                debug("Created", "LICENSE-MIT", level)?;
-            }
-        }
-        TemplateType::Apache => {
-            if let Some(apache) = template.apache() {
-                file_writer.write_all(apache.as_bytes())?;
-                debug("Created", "LICENSE-APACHE", level)?;
-            }
-        }
-        TemplateType::Readme => {
-            if let Some(Ok(readme)) = template.readme() {
-                file_writer.write_all(readme.as_bytes())?;
-                debug("Created", "README.md", level)?;
-            }
-        }
+        TemplateType::Mit => if let Some(mit) = template.mit() {
+            file_writer.write_all(mit.as_bytes())?;
+            debug("Created", "LICENSE-MIT", level)?;
+        },
+        TemplateType::Apache => if let Some(apache) = template.apache() {
+            file_writer.write_all(apache.as_bytes())?;
+            debug("Created", "LICENSE-APACHE", level)?;
+        },
+        TemplateType::Readme => if let Some(Ok(readme)) = template.readme() {
+            file_writer.write_all(readme.as_bytes())?;
+            debug("Created", "README.md", level)?;
+        },
     }
 
     Ok(())
 }
 
 /// Update a pre-existing file based on the given template.
-fn update_file(path: &str,
-               path_parts: &[&str],
-               template: &Templates,
-               template_type: &TemplateType,
-               level: &Level)
-               -> Result<()> {
+fn update_file(
+    path: &str,
+    path_parts: &[&str],
+    template: &Templates,
+    template_type: &TemplateType,
+    level: &Level,
+) -> Result<()> {
     let mut file_path = PathBuf::from(path);
     for path_part in path_parts {
         file_path.push(path_part);
@@ -147,12 +143,13 @@ fn update_file(path: &str,
 }
 
 /// Create a new file based on the given template.
-fn create_file(path: &str,
-               path_parts: &[&str],
-               template: &Templates,
-               template_type: &TemplateType,
-               level: &Level)
-               -> Result<()> {
+fn create_file(
+    path: &str,
+    path_parts: &[&str],
+    template: &Templates,
+    template_type: &TemplateType,
+    level: &Level,
+) -> Result<()> {
     let mut file_path = PathBuf::from(path);
     for path_part in path_parts {
         file_path.push(path_part);
@@ -214,65 +211,93 @@ pub fn run() -> Result<i32> {
         .setting(AppSettings::GlobalVersion)
         .setting(AppSettings::VersionlessSubcommands)
         .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("cli")
-            .arg(Arg::with_name("vcs")
-                 .long("vcs")
-                 .value_name("VCS")
-                 .help("Initialize a new repository for the given version control system
+        .subcommand(
+            SubCommand::with_name("cli")
+                .arg(
+                    Arg::with_name("vcs")
+                        .long("vcs")
+                        .value_name("VCS")
+                        .help(
+                            "Initialize a new repository for the given version control system
                         or do not initialize any version control at all, overriding a
-                        global configuration.")
-                 .possible_values(&["git", "hg", "pijul", "fossil", "none"])
-                 .default_value("git")
-                 .takes_value(true))
-            .arg(Arg::with_name("name")
-                 .long("name")
-                 .value_name("NAME")
-                 .help("Set the resulting package name, defaults to the value of <path>.")
-                 .takes_value(true))
-            .arg(Arg::with_name("color")
-                 .long("color")
-                 .value_name("WHEN")
-                 .help("Coloring")
-                 .possible_values(&["auto", "always", "never"])
-                 .default_value("auto")
-                 .takes_value(true))
-            .arg(Arg::with_name("frozen")
-                 .long("frozen")
-                 .conflicts_with("locked")
-                 .help("Require Cargo.lock and cache are up to date"))
-            .arg(Arg::with_name("locked")
-                 .long("locked")
-                 .help("Require Cargo.lock is up to date"))
-            .arg(Arg::with_name("verbose")
-                 .short("v")
-                 .multiple(true)
-                 .help("Use verbose output (-vv very verbose/build.rs output)"))
-            .arg(Arg::with_name("quiet")
-                 .short("q")
-                 .long("quiet")
-                 .conflicts_with("verbose")
-                 .help("No output printed to stdout"))
-            .arg(Arg::with_name("arg_parser")
-                 .long("arg_parser")
-                 .short("a")
-                 .value_name("PARSER")
-                 .default_value("clap")
-                 .possible_values(&["clap", "docopt"])
-                 .help("Specify the argument parser to use in the generated output."))
-            .arg(Arg::with_name("license")
-                 .long("license")
-                 .value_name("TYPE")
-                 .help("Specify licensing to include in the generated output.")
-                 .possible_values(&["both", "mit", "apache", "none"])
-                 .default_value("both")
-                 .takes_value(true))
-            .arg(Arg::with_name("no-readme")
-                 .long("no-readme")
-                 .help("Turn off README.md generation."))
-            .arg(Arg::with_name("no-latest")
-                 .long("no-latest")
-                 .help("Turn off the crates.io query for the latest version (use defaults)."))
-            .arg(Arg::with_name("path").takes_value(true).required(true)))
+                        global configuration.",
+                        )
+                        .possible_values(&["git", "hg", "pijul", "fossil", "none"])
+                        .default_value("git")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .long("name")
+                        .value_name("NAME")
+                        .help(
+                            "Set the resulting package name, defaults to the value of <path>.",
+                        )
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("color")
+                        .long("color")
+                        .value_name("WHEN")
+                        .help("Coloring")
+                        .possible_values(&["auto", "always", "never"])
+                        .default_value("auto")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("frozen")
+                        .long("frozen")
+                        .conflicts_with("locked")
+                        .help("Require Cargo.lock and cache are up to date"),
+                )
+                .arg(
+                    Arg::with_name("locked")
+                        .long("locked")
+                        .help("Require Cargo.lock is up to date"),
+                )
+                .arg(
+                    Arg::with_name("verbose")
+                        .short("v")
+                        .multiple(true)
+                        .help("Use verbose output (-vv very verbose/build.rs output)"),
+                )
+                .arg(
+                    Arg::with_name("quiet")
+                        .short("q")
+                        .long("quiet")
+                        .conflicts_with("verbose")
+                        .help("No output printed to stdout"),
+                )
+                .arg(
+                    Arg::with_name("arg_parser")
+                        .long("arg_parser")
+                        .short("a")
+                        .value_name("PARSER")
+                        .default_value("clap")
+                        .possible_values(&["clap", "docopt"])
+                        .help(
+                            "Specify the argument parser to use in the generated output.",
+                        ),
+                )
+                .arg(
+                    Arg::with_name("license")
+                        .long("license")
+                        .value_name("TYPE")
+                        .help("Specify licensing to include in the generated output.")
+                        .possible_values(&["both", "mit", "apache", "none"])
+                        .default_value("both")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("no-readme")
+                        .long("no-readme")
+                        .help("Turn off README.md generation."),
+                )
+                .arg(Arg::with_name("no-latest").long("no-latest").help(
+                    "Turn off the crates.io query for the latest version (use defaults).",
+                ))
+                .arg(Arg::with_name("path").takes_value(true).required(true)),
+        )
         .get_matches();
 
     if let Some(cli_matches) = matches.subcommand_matches("cli") {
@@ -371,36 +396,48 @@ pub fn run() -> Result<i32> {
             }
         }
 
-        update_file(path,
-                    &["src", "main.rs"],
-                    &template,
-                    &TemplateType::Main,
-                    &level)?;
-        create_file(path,
-                    &["src", "error.rs"],
-                    &template,
-                    &TemplateType::Error,
-                    &level)?;
-        create_file(path,
-                    &["src", "run.rs"],
-                    &template,
-                    &TemplateType::Run,
-                    &level)?;
-        create_file(path,
-                    &["LICENSE-MIT"],
-                    &template,
-                    &TemplateType::Mit,
-                    &level)?;
-        create_file(path,
-                    &["LICENSE-APACHE"],
-                    &template,
-                    &TemplateType::Apache,
-                    &level)?;
-        create_file(path,
-                    &["README.md"],
-                    &template,
-                    &TemplateType::Readme,
-                    &level)?;
+        update_file(
+            path,
+            &["src", "main.rs"],
+            &template,
+            &TemplateType::Main,
+            &level,
+        )?;
+        create_file(
+            path,
+            &["src", "error.rs"],
+            &template,
+            &TemplateType::Error,
+            &level,
+        )?;
+        create_file(
+            path,
+            &["src", "run.rs"],
+            &template,
+            &TemplateType::Run,
+            &level,
+        )?;
+        create_file(
+            path,
+            &["LICENSE-MIT"],
+            &template,
+            &TemplateType::Mit,
+            &level,
+        )?;
+        create_file(
+            path,
+            &["LICENSE-APACHE"],
+            &template,
+            &TemplateType::Apache,
+            &level,
+        )?;
+        create_file(
+            path,
+            &["README.md"],
+            &template,
+            &TemplateType::Readme,
+            &level,
+        )?;
 
         let mut cargo_toml_path = PathBuf::from(path);
         cargo_toml_path.push("Cargo.toml");
@@ -439,8 +476,7 @@ pub fn run() -> Result<i32> {
             .write(true)
             .open(cargo_toml_path.as_path())?;
         let mut cargo_toml_writer = BufWriter::new(new_cargo_toml);
-        cargo_toml_writer
-            .write_all(toml::to_string(&config)?.as_bytes())?;
+        cargo_toml_writer.write_all(toml::to_string(&config)?.as_bytes())?;
 
         debug("Updated", "Cargo.toml", &level)?;
 

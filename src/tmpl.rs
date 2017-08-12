@@ -79,13 +79,14 @@ pub struct Templates {
 
 impl Templates {
     /// Create a new template use for file creation.
-    pub fn new(name: &str,
-               clap: bool,
-               mit: bool,
-               apache: bool,
-               readme: bool,
-               query: bool)
-               -> Templates {
+    pub fn new(
+        name: &str,
+        clap: bool,
+        mit: bool,
+        apache: bool,
+        readme: bool,
+        query: bool,
+    ) -> Templates {
         let mut template = Templates {
             clap: clap,
             kvs: MapBuilder::new().insert_str("name", name).build(),
@@ -201,8 +202,10 @@ impl Templates {
     pub fn add_deps(&self, deps: &mut BTreeMap<String, String>) {
         if self.clap {
             let (error_chain_latest, clap_latest) = if self.query {
-                (get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
-                 get_latest("clap").unwrap_or_else(|_| "2.25.0".to_string()))
+                (
+                    get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
+                    get_latest("clap").unwrap_or_else(|_| "2.25.0".to_string()),
+                )
             } else {
                 ("0.10.0".to_string(), "2.25.0".to_string())
             };
@@ -210,15 +213,19 @@ impl Templates {
             deps.insert("clap".to_string(), clap_latest);
         } else {
             let (ec_latest, docopt_latest, sd_latest, s_latest) = if self.query {
-                (get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
-                 get_latest("docopt").unwrap_or_else(|_| "0.8.1".to_string()),
-                 get_latest("serde_derive").unwrap_or_else(|_| "1.0.9".to_string()),
-                 get_latest("serde").unwrap_or_else(|_| "1.0.9".to_string()))
+                (
+                    get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
+                    get_latest("docopt").unwrap_or_else(|_| "0.8.1".to_string()),
+                    get_latest("serde_derive").unwrap_or_else(|_| "1.0.9".to_string()),
+                    get_latest("serde").unwrap_or_else(|_| "1.0.9".to_string()),
+                )
             } else {
-                ("0.10.0".to_string(),
-                 "0.8.1".to_string(),
-                 "1.0.9".to_string(),
-                 "1.0.9".to_string())
+                (
+                    "0.10.0".to_string(),
+                    "0.8.1".to_string(),
+                    "1.0.9".to_string(),
+                    "1.0.9".to_string(),
+                )
             };
             deps.insert("serde_derive".to_string(), sd_latest);
             deps.insert("serde".to_string(), s_latest);
@@ -254,11 +261,10 @@ fn fetch_cratesio(path: &str) -> Result<String> {
     let mut html = Vec::new();
     {
         let mut transfer = easy.transfer();
-        transfer
-            .write_function(|data| {
-                                html.extend_from_slice(data);
-                                Ok(data.len())
-                            })?;
+        transfer.write_function(|data| {
+            html.extend_from_slice(data);
+            Ok(data.len())
+        })?;
 
 
         transfer.perform()?;
