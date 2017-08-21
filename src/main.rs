@@ -102,6 +102,7 @@
 //!
 #![deny(missing_docs)]
 #![recursion_limit = "128"]
+#![cfg_attr(feature = "cargo-clippy", allow(use_self))]
 #[macro_use]
 extern crate error_chain;
 #[macro_use]
