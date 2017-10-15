@@ -204,102 +204,99 @@ fn info(verb: &str, message: &str, level: &Level) -> Result<()> {
 
 /// Parse the args, and execute the generated commands.
 pub fn run() -> Result<i32> {
-    let matches =
-        App::new(env!("CARGO_PKG_NAME"))
-            .version(env!("CARGO_PKG_VERSION"))
-            .author(env!("CARGO_PKG_AUTHORS"))
-            .about("Creates a Rust command line application")
-            .setting(AppSettings::GlobalVersion)
-            .setting(AppSettings::VersionlessSubcommands)
-            .setting(AppSettings::SubcommandRequiredElseHelp)
-            .subcommand(
-                SubCommand::with_name("cli")
-                    .arg(
-                        Arg::with_name("vcs")
-                            .long("vcs")
-                            .value_name("VCS")
-                            .help(
-                                "Initialize a new repository for the given version control system
+    let matches = App::new(env!("CARGO_PKG_NAME"))
+        .version(env!("CARGO_PKG_VERSION"))
+        .author(env!("CARGO_PKG_AUTHORS"))
+        .about("Creates a Rust command line application")
+        .setting(AppSettings::GlobalVersion)
+        .setting(AppSettings::VersionlessSubcommands)
+        .setting(AppSettings::SubcommandRequiredElseHelp)
+        .subcommand(
+            SubCommand::with_name("cli")
+                .arg(
+                    Arg::with_name("vcs")
+                        .long("vcs")
+                        .value_name("VCS")
+                        .help(
+                            "Initialize a new repository for the given version control system
                         or do not initialize any version control at all, overriding a
                         global configuration.",
-                            )
-                            .possible_values(&["git", "hg", "pijul", "fossil", "none"])
-                            .default_value("git")
-                            .takes_value(true),
-                    )
-                    .arg(
-                        Arg::with_name("name")
-                            .long("name")
-                            .value_name("NAME")
-                            .help(
-                                "Set the resulting package name, defaults to the value of <path>.",
-                            )
-                            .takes_value(true),
-                    )
-                    .arg(
-                        Arg::with_name("color")
-                            .long("color")
-                            .value_name("WHEN")
-                            .help("Coloring")
-                            .possible_values(&["auto", "always", "never"])
-                            .default_value("auto")
-                            .takes_value(true),
-                    )
-                    .arg(
-                        Arg::with_name("frozen")
-                            .long("frozen")
-                            .conflicts_with("locked")
-                            .help("Require Cargo.lock and cache are up to date"),
-                    )
-                    .arg(
-                        Arg::with_name("locked")
-                            .long("locked")
-                            .help("Require Cargo.lock is up to date"),
-                    )
-                    .arg(
-                        Arg::with_name("verbose")
-                            .short("v")
-                            .multiple(true)
-                            .help("Use verbose output (-vv very verbose/build.rs output)"),
-                    )
-                    .arg(
-                        Arg::with_name("quiet")
-                            .short("q")
-                            .long("quiet")
-                            .conflicts_with("verbose")
-                            .help("No output printed to stdout"),
-                    )
-                    .arg(
-                        Arg::with_name("arg_parser")
-                            .long("arg_parser")
-                            .short("a")
-                            .value_name("PARSER")
-                            .default_value("clap")
-                            .possible_values(&["clap", "docopt"])
-                            .help("Specify the argument parser to use in the generated output."),
-                    )
-                    .arg(
-                        Arg::with_name("license")
-                            .long("license")
-                            .value_name("TYPE")
-                            .help("Specify licensing to include in the generated output.")
-                            .possible_values(&["both", "mit", "apache", "none"])
-                            .default_value("both")
-                            .takes_value(true),
-                    )
-                    .arg(
-                        Arg::with_name("no-readme")
-                            .long("no-readme")
-                            .help("Turn off README.md generation."),
-                    )
-                    .arg(
-                        Arg::with_name("no-latest").long("no-latest").help(
-                            "Turn off the crates.io query for the latest version (use defaults).",
-                        ),
-                    )
-                    .arg(Arg::with_name("path").takes_value(true).required(true)),
-            )
-            .get_matches();
+                        )
+                        .possible_values(&["git", "hg", "pijul", "fossil", "none"])
+                        .default_value("git")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .long("name")
+                        .value_name("NAME")
+                        .help("Set the resulting package name, defaults to the value of <path>.")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("color")
+                        .long("color")
+                        .value_name("WHEN")
+                        .help("Coloring")
+                        .possible_values(&["auto", "always", "never"])
+                        .default_value("auto")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("frozen")
+                        .long("frozen")
+                        .conflicts_with("locked")
+                        .help("Require Cargo.lock and cache are up to date"),
+                )
+                .arg(
+                    Arg::with_name("locked")
+                        .long("locked")
+                        .help("Require Cargo.lock is up to date"),
+                )
+                .arg(
+                    Arg::with_name("verbose")
+                        .short("v")
+                        .multiple(true)
+                        .help("Use verbose output (-vv very verbose/build.rs output)"),
+                )
+                .arg(
+                    Arg::with_name("quiet")
+                        .short("q")
+                        .long("quiet")
+                        .conflicts_with("verbose")
+                        .help("No output printed to stdout"),
+                )
+                .arg(
+                    Arg::with_name("arg_parser")
+                        .long("arg_parser")
+                        .short("a")
+                        .value_name("PARSER")
+                        .default_value("clap")
+                        .possible_values(&["clap", "docopt"])
+                        .help("Specify the argument parser to use in the generated output."),
+                )
+                .arg(
+                    Arg::with_name("license")
+                        .long("license")
+                        .value_name("TYPE")
+                        .help("Specify licensing to include in the generated output.")
+                        .possible_values(&["both", "mit", "apache", "none"])
+                        .default_value("both")
+                        .takes_value(true),
+                )
+                .arg(
+                    Arg::with_name("no-readme")
+                        .long("no-readme")
+                        .help("Turn off README.md generation."),
+                )
+                .arg(
+                    Arg::with_name("no-latest")
+                        .long("no-latest")
+                        .help("Turn off the crates.io query for the latest version (use default)."),
+                )
+                .arg(Arg::with_name("path").takes_value(true).required(true)),
+        )
+        .get_matches();
 
     if let Some(cli_matches) = matches.subcommand_matches("cli") {
         let mut cargo_new_args = Vec::new();
