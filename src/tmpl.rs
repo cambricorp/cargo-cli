@@ -76,7 +76,6 @@ pub struct Templates {
     query: bool,
 }
 
-
 impl Templates {
     /// Create a new template use for file creation.
     pub fn new(
@@ -265,7 +264,6 @@ fn fetch_cratesio(path: &str) -> Result<String> {
             html.extend_from_slice(data);
             Ok(data.len())
         })?;
-
 
         transfer.perform()?;
     }

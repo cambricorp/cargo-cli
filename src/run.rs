@@ -81,7 +81,6 @@ fn write_file(
 ) -> Result<()> {
     let mut file_writer = BufWriter::new(file);
 
-
     match *template_type {
         TemplateType::Main => {
             if template.has_license() {
