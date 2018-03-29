@@ -87,7 +87,7 @@ impl Templates {
         query: bool,
     ) -> Templates {
         let mut template = Templates {
-            clap: clap,
+            clap,
             kvs: MapBuilder::new().insert_str("name", name).build(),
             main: "",
             run: "",
@@ -96,7 +96,7 @@ impl Templates {
             mit: None,
             apache: None,
             readme: None,
-            query: query,
+            query,
         };
 
         if mit && apache {
@@ -211,24 +211,25 @@ impl Templates {
             deps.insert("error-chain".to_string(), error_chain_latest);
             deps.insert("clap".to_string(), clap_latest);
         } else {
-            let (ec_latest, docopt_latest, sd_latest, s_latest) = if self.query {
-                (
-                    get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
-                    get_latest("docopt").unwrap_or_else(|_| "0.8.1".to_string()),
-                    get_latest("serde_derive").unwrap_or_else(|_| "1.0.9".to_string()),
-                    get_latest("serde").unwrap_or_else(|_| "1.0.9".to_string()),
-                )
-            } else {
-                (
-                    "0.10.0".to_string(),
-                    "0.8.1".to_string(),
-                    "1.0.9".to_string(),
-                    "1.0.9".to_string(),
-                )
-            };
-            deps.insert("serde_derive".to_string(), sd_latest);
-            deps.insert("serde".to_string(), s_latest);
-            deps.insert("error-chain".to_string(), ec_latest);
+            let (error_chain_latest, docopt_latest, serde_derive_latest, serde_latest) =
+                if self.query {
+                    (
+                        get_latest("error-chain").unwrap_or_else(|_| "0.10.0".to_string()),
+                        get_latest("docopt").unwrap_or_else(|_| "0.8.1".to_string()),
+                        get_latest("serde_derive").unwrap_or_else(|_| "1.0.9".to_string()),
+                        get_latest("serde").unwrap_or_else(|_| "1.0.9".to_string()),
+                    )
+                } else {
+                    (
+                        "0.10.0".to_string(),
+                        "0.8.1".to_string(),
+                        "1.0.9".to_string(),
+                        "1.0.9".to_string(),
+                    )
+                };
+            deps.insert("serde_derive".to_string(), serde_derive_latest);
+            deps.insert("serde".to_string(), serde_latest);
+            deps.insert("error-chain".to_string(), error_chain_latest);
             deps.insert("docopt".to_string(), docopt_latest);
         }
     }
