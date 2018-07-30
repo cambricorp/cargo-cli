@@ -220,19 +220,16 @@ pub fn run() -> Result<i32> {
                             "Initialize a new repository for the given version control system
                         or do not initialize any version control at all, overriding a
                         global configuration.",
-                        )
-                        .possible_values(&["git", "hg", "pijul", "fossil", "none"])
+                        ).possible_values(&["git", "hg", "pijul", "fossil", "none"])
                         .default_value("git")
                         .takes_value(true),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("name")
                         .long("name")
                         .value_name("NAME")
                         .help("Set the resulting package name, defaults to the value of <path>.")
                         .takes_value(true),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("color")
                         .long("color")
                         .value_name("WHEN")
@@ -240,32 +237,27 @@ pub fn run() -> Result<i32> {
                         .possible_values(&["auto", "always", "never"])
                         .default_value("auto")
                         .takes_value(true),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("frozen")
                         .long("frozen")
                         .conflicts_with("locked")
                         .help("Require Cargo.lock and cache are up to date"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("locked")
                         .long("locked")
                         .help("Require Cargo.lock is up to date"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("verbose")
                         .short("v")
                         .multiple(true)
                         .help("Use verbose output (-vv very verbose/build.rs output)"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("quiet")
                         .short("q")
                         .long("quiet")
                         .conflicts_with("verbose")
                         .help("No output printed to stdout"),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("arg_parser")
                         .long("arg_parser")
                         .short("a")
@@ -273,8 +265,7 @@ pub fn run() -> Result<i32> {
                         .default_value("clap")
                         .possible_values(&["clap", "docopt"])
                         .help("Specify the argument parser to use in the generated output."),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("license")
                         .long("license")
                         .value_name("TYPE")
@@ -282,20 +273,16 @@ pub fn run() -> Result<i32> {
                         .possible_values(&["both", "mit", "apache", "none"])
                         .default_value("both")
                         .takes_value(true),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("no-readme")
                         .long("no-readme")
                         .help("Turn off README.md generation."),
-                )
-                .arg(
+                ).arg(
                     Arg::with_name("no-latest")
                         .long("no-latest")
                         .help("Turn off the crates.io query for the latest version (use default)."),
-                )
-                .arg(Arg::with_name("path").takes_value(true).required(true)),
-        )
-        .get_matches();
+                ).arg(Arg::with_name("path").takes_value(true).required(true)),
+        ).get_matches();
 
     if let Some(cli_matches) = matches.subcommand_matches("cli") {
         let mut cargo_new_args = Vec::new();
