@@ -49,7 +49,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cargo-cli"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "curl 0.4.14 (registry+https://github.com/rust-lang/crates.io-index)",
