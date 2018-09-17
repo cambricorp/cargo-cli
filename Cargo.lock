@@ -52,7 +52,7 @@ name = "cargo-cli"
 version = "1.0.0"
 dependencies = [
  "clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "curl 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "curl 0.4.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mustache 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.79 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "curl"
-version = "0.4.15"
+version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "curl-sys 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -405,7 +405,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum cc 1.0.25 (registry+https://github.com/rust-lang/crates.io-index)" = "f159dfd43363c4d08055a07703eb7a3406b0dac4d0584d96965a3262db3c9d16"
 "checksum cfg-if 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "0c4e7bb64a8ebb0d856483e1e682ea3422f883c5f5615a90d51a2c82fe87fdd3"
 "checksum clap 2.32.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b957d88f4b6a63b9d70d5f454ac8011819c6efa7727858f458ab71c756ce2d3e"
-"checksum curl 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)" = "a2f58080df27bc90d474e87714f32f35ba6d8a7e60ae92d1d991fc8812d23f21"
+"checksum curl 0.4.17 (registry+https://github.com/rust-lang/crates.io-index)" = "c8172e96ecfb1a2bfe3843d9d7154099a15130cf4a2f658259c7aa9cc2b5d4ff"
 "checksum curl-sys 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)" = "2edeedbbd9c7cdccb14bfb5dfbcc108901f99d3411eb5bab3758789377c5bec4"
 "checksum error-chain 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)" = "07e791d3be96241c77c43846b665ef1384606da2cd2a48730abe606a12906e02"
 "checksum itoa 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "1306f3464951f30e30d12373d31c79fbd52d236e5e896fd92f96ec7babbbe60b"
