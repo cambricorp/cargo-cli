@@ -7,7 +7,7 @@
 // modified, or distributed except according to those terms.
 
 //! `cargo-cli` errors
-error_chain!{
+error_chain! {
     foreign_links {
         Curl(::curl::Error);
         FromUtf8(::std::string::FromUtf8Error);
